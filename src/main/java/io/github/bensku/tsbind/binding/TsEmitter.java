@@ -1,9 +1,7 @@
 package io.github.bensku.tsbind.binding;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.regex.Pattern;
 
 import org.jsoup.Jsoup;
 
@@ -69,7 +67,13 @@ public class TsEmitter {
 	 */
 	private final Map<String, TypeDefinition> types;
 	
-	public TsEmitter(String indentation, Map<TypeRef, String> typeNames, Map<String, TypeDefinition> types) {
+	private boolean emitReadOnly = false;
+
+	private List<Pattern> excludeMethodPatterns = new ArrayList<>();
+
+	private boolean lastPrintSkipped = false;
+	
+	public TsEmitter(String indentation, Map<TypeRef, String> typeNames, Map<String, TypeDefinition> types, boolean emitReadonly, List<String> excludeMethods) {
 		this.output = new StringBuilder();
 		this.indentation = indentation;
 		this.indenter = new Indenter();
@@ -77,6 +81,12 @@ public class TsEmitter {
 		this.typeNames = typeNames;
 		this.generators = new HashMap<>();
 		this.types = types;
+		this.emitReadOnly = emitReadonly;
+		if (excludeMethods != null) {
+			for (String pattern : excludeMethods) {
+				excludeMethodPatterns.add(Pattern.compile(pattern));
+			}
+		}
 		registerGenerators();
 	}
 	
@@ -156,7 +166,24 @@ public class TsEmitter {
 		if (generator == null) {
 			throw new UnsupportedOperationException("unsupported node type " + node.getClass());
 		}
+		if (emitReadOnly &&
+				(node instanceof Constructor || node instanceof Setter)) {
+			lastPrintSkipped = true;
+			return this;
+		}
+		if (!excludeMethodPatterns.isEmpty()) {
+			if (node instanceof Method) {
+				Method method = (Method) node;
+				for (Pattern pattern : excludeMethodPatterns) {
+					if (pattern.matcher(method.name()).matches()) {
+						lastPrintSkipped = true;
+						return this;
+					}
+				}
+			}
+		}
 		generator.emit(node, this);
+		lastPrintSkipped = false;
 		return this;
 	}
 	
@@ -168,7 +195,9 @@ public class TsEmitter {
 	public TsEmitter print(List<? extends AstNode> list, String delimiter) {
 		for (int i = 0; i < list.size() - 1; i++) {
 			print(list.get(i));
+			if (!lastPrintSkipped) {
 			output.append(delimiter);
+		}
 		}
 		if (!list.isEmpty()) {
 			print(list.get(list.size() - 1));

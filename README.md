@@ -34,6 +34,8 @@ This is a command-line application.
   * Names of options lack -- prefixes but are otherwise same
   * Handy when you already have package.json for publishing
 * --index: generate index.d.ts that references other generated files
+* --emitReadOnly : if set, deactivates constructors and setter in the generated types
+* --excludeMethods : a list of regular expressions that will be used to exclude methods by name
 
 ## Limitations
 java-ts-bind does not necessarily generate *valid* TypeScript declarations.

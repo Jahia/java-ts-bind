@@ -121,7 +121,7 @@ public class AstGenerator {
 	
 	/**
 	 * Checks if a member is or uses blacklisted types.
-	 * @param member Member to check.
+	 * @param node Member to check.
 	 * @return Whether the member should be omitted.
 	 */
 	private boolean isBlacklisted(AstNode node) {
@@ -235,11 +235,11 @@ public class AstGenerator {
 			superTypes = extendedResult.publicTypes.stream()
 					.map(TypeRef::fromType)
 					.filter(t -> !isBlacklisted(t))
-					.toList();
+					.collect(Collectors.toList());
 			interfaces = implementedResult.publicTypes.stream()
 					.map(TypeRef::fromType)
 					.filter(t -> !isBlacklisted(t))
-					.toList();
+					.collect(Collectors.toList());
 			
 			extendedResult.privateTypes.forEach(t -> privateOverrides.addAll(getAllMethods(t)));
 			implementedResult.privateTypes.forEach(t -> privateOverrides.addAll(getAllMethods(t)));

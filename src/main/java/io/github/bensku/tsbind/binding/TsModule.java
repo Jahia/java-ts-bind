@@ -18,6 +18,10 @@ public class TsModule {
 	 * be fully qualified name of the outer class instead.
 	 */
 	private final String name;
+
+	private boolean emitReadOnly = false;
+
+	private List<String> excludeMethods = new ArrayList<>();
 	
 	/**
 	 * Types in this module.
@@ -33,8 +37,19 @@ public class TsModule {
 		return name;
 	}
 	
-	public void addType(TypeDefinition type) {
+	public TsModule addType(TypeDefinition type) {
 		types.add(type);
+		return this;
+	}
+
+	public TsModule emitReadOnly(boolean emitReadOnly) {
+		this.emitReadOnly = emitReadOnly;
+		return this;
+	}
+
+	public TsModule excludeMethods(List<String> excludeMethods) {
+		this.excludeMethods = excludeMethods;
+		return this;
 	}
 	
 	public void write(Map<String, TypeDefinition> typeTable, StringBuilder sb) {
@@ -82,7 +97,7 @@ public class TsModule {
 		}
 		
 		// Generate classes of this module
-		TsEmitter emitter = new TsEmitter("  ", typeNames, typeTable);
+		TsEmitter emitter = new TsEmitter("  ", typeNames, typeTable, emitReadOnly, excludeMethods);
 		types.forEach(emitter::print);
 		sb.append(emitter.toString());
 		

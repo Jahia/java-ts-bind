@@ -1,0 +1,84 @@
+{
+  "name": "@jahia-types/npm-modules-engine",
+  "version": "VERSION",
+  "description": "NPM Modules engine base types",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/bensku/java-ts-bind.git",
+    "directory": "npm-modules-engine"
+  },
+  "author": "Serge Huber",
+  "tsbindOptions": {
+    "in": [
+      "npm-modules-engine/build/sources/npm-modules-engine/src/main/java",
+      "npm-modules-engine/build/sources/jahia-private/core/src/main/java",
+      "npm-modules-engine/build/sources/jdk11/jdk11u-master/src/java.base",
+      "npm-modules-engine/build/sources/servlet-api",
+      "npm-modules-engine/build/sources/jcr2",
+      "npm-modules-engine/build/sources/felix-framework/org.apache.felix.framework-6.0.5/src/main/java"
+    ],
+    "symbols": [
+      "npm-modules-engine/build/jar-symbols/npm-modules-engine-0.1.0-SNAPSHOT.jar",
+      "npm-modules-engine/build/jar-symbols/jahia-impl-8.2.0.0-SNAPSHOT.jar",
+      "npm-modules-engine/build/jar-symbols/org.apache.felix.framework-6.0.5.jar",
+      "npm-modules-engine/build/jar-symbols/spring-web-3.2.18.jahia4_OSGI.jar",
+      "npm-modules-engine/build/jar-symbols/spring-beans-3.2.18.RELEASE_OSGI.jar",
+      "npm-modules-engine/build/jar-symbols/graal-sdk-22.3.3.jar",
+      "npm-modules-engine/build/jar-symbols/jboss-jsp-api_2.3_spec-1.0.3.Final.jar",
+      "npm-modules-engine/build/jar-symbols/javax.servlet-api-3.1.0.jar",
+      "npm-modules-engine/build/jar-symbols/jsp-api-2.1.jar",
+      "npm-modules-engine/build/jar-symbols/jcr-2.0.jar",
+      "npm-modules-engine/build/jar-symbols/commons-lang-2.6.jar",
+      "npm-modules-engine/build/jar-symbols/xml-apis-1.4.01.jar",
+      "npm-modules-engine/build/jar-symbols/osgi.annotation-7.0.0.jar",
+      "npm-modules-engine/build/jar-symbols/spring-context-3.2.18.RELEASE_OSGI.jar",
+      "npm-modules-engine/build/jar-symbols/jackrabbit-spi-commons-2.18.4-jahia1.jar"
+    ],
+    "out": "npm-modules-engine/build/ts",
+    "include": [
+      "org.jahia.modules.npm.modules.engine.js.server",
+      "org.osgi.framework.Bundle",
+      "org.osgi.framework.BundleContext",
+      "org.jahia.services.render.RenderContext",
+      "org.jahia.services.render.Resource",
+      "org.jahia.services.content.JCRNodeWrapper",
+      "org.jahia.services.content.JCRPropertyWrapper",
+      "javax.servlet.http.HttpServletRequest",
+      "javax.servlet.http.HttpServletResponse",
+      "java.util.Locale"
+    ],
+    "exclude": [
+      "org.jahia.modules.npm.modules.engine.helpers.injector.OSGiServiceInjector",
+      "org.jahia.modules.npm.modules.engine.helpers.injector.OSGiService",
+      "org.jahia.services.content.JCRNodeWrapperImpl",
+      "org.jahia.modules.npm.modules.engine.helpers.MockJspWriter",
+      "org.jahia.modules.npm.modules.engine.helpers.MockPageContext"
+    ],
+    "index": true,
+    "emitReadOnly" : true,
+    "excludeMethods" : [
+      "set.*",
+      "add.*",
+      "clone.*",
+      "copy.*",
+      "remove.*",
+      "create.*",
+      "deny.*",
+      "unlock.*",
+      "clear.*",
+      "check.*",
+      "save.*",
+      "rename.*",
+      "grant.*",
+      "change.*",
+      "revoke.*",
+      "lock.*",
+      "getOrCreate.*",
+      "start.*",
+      "stop.*",
+      "install.*",
+      "uninstall.*",
+      "update.*"
+    ]
+  }
+}

@@ -82,7 +82,7 @@ public class TsClass implements TsGenerator<TypeDefinition> {
 				
 		/**
 		 * Finds an interface method that the given method overrides.
-		 * @param member Method to find overrides for.
+		 * @param method Method to find overrides for.
 		 * @return Overridden member, if found.
 		 */
 		private Optional<Member> resolveInterfaceOverride(Method method) {

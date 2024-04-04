@@ -15,7 +15,7 @@ public class Args {
 
 	public enum OutputFormat {
 		JSON((args) -> new JsonEmitter()),
-		TS_TYPES((args) -> new BindingGenerator(args.index));
+		TS_TYPES((args) -> new BindingGenerator(args.index, args.emitReadOnly, args.excludeMethods));
 		
 		public final Function<Args, AstConsumer<String>> consumerSource;
 		
@@ -59,4 +59,11 @@ public class Args {
 	
 	@Parameter(names = "--index")
 	public boolean index;
+
+	@Parameter(names = "--emitReadOnly")
+	public boolean emitReadOnly;
+
+	@Parameter(names = "--excludeMethods")
+	public List<String> excludeMethods = List.of();
+
 }

@@ -1,9 +1,6 @@
 package io.github.bensku.tsbind.binding;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 import io.github.bensku.tsbind.AstConsumer;
@@ -35,9 +32,15 @@ public class BindingGenerator implements AstConsumer<String> {
 	 * Whether or not index.d.ts should be generated.
 	 */
 	private final boolean buildIndex;
+
+	private boolean emitReadOnly = false;
+
+	private List<String> excludeMethods = new ArrayList<>();
 	
-	public BindingGenerator(boolean buildIndex) {
+	public BindingGenerator(boolean buildIndex, boolean emitReadOnly, List<String> excludeMethods) {
 		this.buildIndex = buildIndex;
+		this.emitReadOnly = emitReadOnly;
+		this.excludeMethods = excludeMethods;
 	}
 	
 	@Override
@@ -85,7 +88,10 @@ public class BindingGenerator implements AstConsumer<String> {
 		}
 		
 		// Get module for package the class is in, creating if needed
-		modules.computeIfAbsent(getModuleName(type.ref), TsModule::new).addType(type);
+		modules.computeIfAbsent(getModuleName(type.ref), TsModule::new)
+				.addType(type)
+				.emitReadOnly(emitReadOnly)
+				.excludeMethods(excludeMethods);
 		
 		// Fake inner classes with TS modules
 		// Nested types in TS are quite different from Java, so we can't use them
