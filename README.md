@@ -36,6 +36,8 @@ This is a command-line application.
 * --index: generate index.d.ts that references other generated files
 * --emitReadOnly : if set, deactivates constructors and setter in the generated types
 * --excludeMethods : a list of regular expressions that will be used to exclude methods by name
+* --groupByDomain : if set, the generated types will be grouped by domain, if not set the output will instead be grouped by module name
+* --useGettersAndSetters : if set, Typescript getters and setters will be used to group methods into setters and getters. If not set this mechanism is disabled and no intelligence will be performed to regroup getter and setter methods.
 
 ## Limitations
 java-ts-bind does not necessarily generate *valid* TypeScript declarations.

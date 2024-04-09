@@ -22,6 +22,8 @@ public class TsModule {
 	private boolean emitReadOnly = false;
 
 	private List<String> excludeMethods = new ArrayList<>();
+
+	private boolean useGettersAndSetters = false;
 	
 	/**
 	 * Types in this module.
@@ -49,6 +51,11 @@ public class TsModule {
 
 	public TsModule excludeMethods(List<String> excludeMethods) {
 		this.excludeMethods = excludeMethods;
+		return this;
+	}
+
+	public TsModule useGettersAndSetters(boolean useGettersAndSetters) {
+		this.useGettersAndSetters = useGettersAndSetters;
 		return this;
 	}
 	
@@ -97,7 +104,7 @@ public class TsModule {
 		}
 		
 		// Generate classes of this module
-		TsEmitter emitter = new TsEmitter("  ", typeNames, typeTable, emitReadOnly, excludeMethods);
+		TsEmitter emitter = new TsEmitter("  ", typeNames, typeTable, emitReadOnly, excludeMethods, useGettersAndSetters);
 		types.forEach(emitter::print);
 		sb.append(emitter.toString());
 		

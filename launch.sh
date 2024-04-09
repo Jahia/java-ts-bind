@@ -138,9 +138,19 @@ for jar_file in "${jar_files[@]}"; do
     fi
 done
 
+echo " Creating directories and cleaning up previous builds..."
+$RUN_COMMAND mkdir -p npm-modules-engine/build/types
+$RUN_COMMAND rm -rf npm-modules-engine/build/types/*
+
 echo " Running Java to Typescript tool..."
-mkdir -p npm-modules-engine/build/ts
 $RUN_COMMAND $JAVA -jar build/libs/java-ts-bind-all.jar --packageJson npm-modules-engine/package.json
+
+echo " Patching generated output..."
+$RUN_COMMAND pushd npm-modules-engine
+$RUN_COMMAND source fix-gen.sh
+echo " Building TypeScript definition files..."
+$RUN_COMMAND yarn build
+$RUN_COMMAND popd
 
 ELAPSED_TIME=$(($SECONDS - $START_TIME))
 echo "======================================================================================="

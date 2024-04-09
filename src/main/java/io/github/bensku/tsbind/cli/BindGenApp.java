@@ -80,7 +80,7 @@ public class BindGenApp {
 		
 		// Prepare for AST generation
 		JavaParser parser = setupParser(args.symbols);
-		AstGenerator astGenerator = new AstGenerator(parser, args.blacklist);
+		AstGenerator astGenerator = new AstGenerator(parser, args.blacklist, args.useGettersAndSetters);
 		
 		// Walk over input Java source files
 		String offset = args.offset;

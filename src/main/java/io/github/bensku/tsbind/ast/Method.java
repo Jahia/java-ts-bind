@@ -29,15 +29,18 @@ public class Method extends Member {
 	 * If this is annotated with {@link Override}.
 	 */
 	public final boolean isOverride;
+
+	public final String typeName;
 	
 	public Method(String name, TypeRef returnType, List<Parameter> params, List<TypeRef> typeParams, String javadoc,
-			boolean isPublic, boolean isStatic, boolean isOverride) {
+			boolean isPublic, boolean isStatic, boolean isOverride, String typeName) {
 		super(javadoc, isPublic, isStatic);
 		this.name = name;
 		this.returnType = returnType;
 		this.params = params;
 		this.typeParams = typeParams;
 		this.isOverride = isOverride;
+		this.typeName = typeName;
 	}
 	
 	/**
@@ -60,6 +63,10 @@ public class Method extends Member {
 	@Override
 	public String name() {
 		return name;
+	}
+
+	public String typeName() {
+		return typeName;
 	}
 
 }

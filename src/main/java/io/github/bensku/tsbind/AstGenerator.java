@@ -60,10 +60,12 @@ public class AstGenerator {
 	 * emitted. All {@link Member members} that contain them are also ignored.
 	 */
 	private final List<String> blacklist;
+	private boolean useGettersAndSetters = true;
 	
-	public AstGenerator(JavaParser parser, List<String> blacklist) {
+	public AstGenerator(JavaParser parser, List<String> blacklist, boolean useGettersAndSetters) {
 		this.parser = parser;
 		this.blacklist = blacklist;
+		this.useGettersAndSetters = useGettersAndSetters;
 	}
 	
 	/**
@@ -155,7 +157,7 @@ public class AstGenerator {
 		if (member.isFieldDeclaration()) {
 			// Even private fields may need Lombok getter/setter
 			try {
-				processField(addMember, member.asFieldDeclaration(), typeKind == TypeDefinition.Kind.INTERFACE, isPublic, lombokGetter, lombokSetter);
+				processField(addMember, member.asFieldDeclaration(), typeKind == TypeDefinition.Kind.INTERFACE, isPublic, lombokGetter, lombokSetter, typeName);
 			} catch (UnsolvedSymbolException e) {
 				// Allow symbol lookup to fail on private fields
 				if (isPublic) {
@@ -181,9 +183,9 @@ public class AstGenerator {
 			// Constructor might be generic, but AFAIK TypeScript doesn't support that
 			// (constructors of generic classes are, of course, supported)
 			// Private constructors are not yet needed, so they won't exist
-			addMember.accept(new Constructor(constructor.getName(), getParameters(constructor, nullable), getJavadoc(member), true));
+			addMember.accept(new Constructor(constructor.getName(), getParameters(constructor, nullable), getJavadoc(member), true, typeName));
 		} else if (member.isMethodDeclaration()) {
-			addMember.accept(processMethod(member.asMethodDeclaration(), privateOverrides));
+			addMember.accept(processMethod(member.asMethodDeclaration(), privateOverrides, typeName));
 		}
 	}
 	
@@ -208,8 +210,8 @@ public class AstGenerator {
 			
 			addMember.accept(new Method("valueOf", typeRef,
 					List.of(new Parameter("name", TypeRef.STRING, false)),
-					List.of(), null, true, true, false));
-			addMember.accept(new Method("values", typeRef.makeArray(1), List.of(), List.of(), null, true, true, false));
+					List.of(), null, true, true, false, typeName));
+			addMember.accept(new Method("values", typeRef.makeArray(1), List.of(), List.of(), null, true, true, false, typeName));
 		}
 		
 		// Figure out supertypes and interfaces (needed by some members)
@@ -276,7 +278,7 @@ public class AstGenerator {
 					.map(member -> (Field) member)
 					.map(field -> new Parameter(field.name, field.type, false))
 					.collect(Collectors.toList());
-			addMember.accept(new Constructor(type.getNameAsString(), params, null, true));
+			addMember.accept(new Constructor(type.getNameAsString(), params, null, true, typeName));
 		}
 		if (type.isAnnotationPresent("RequiredArgsConstructor")) {
 			List<Parameter> params = members.stream()
@@ -285,7 +287,7 @@ public class AstGenerator {
 					.filter(field -> field.isFinal)
 					.map(field -> new Parameter(field.name, field.type, false))
 					.collect(Collectors.toList());
-			addMember.accept(new Constructor(type.getNameAsString(), params, null, true));
+			addMember.accept(new Constructor(type.getNameAsString(), params, null, true, typeName));
 		}
 		
 		// Create type definition
@@ -363,7 +365,7 @@ public class AstGenerator {
 		return false;
 	}
 	
-	private Method processMethod(MethodDeclaration member, Set<String> privateOverrides) {
+	private Method processMethod(MethodDeclaration member, Set<String> privateOverrides, String typeName) {
 		boolean isPublic = true; // Private methods are not yet needed, so they won't exist
 		
 		ResolvedMethodDeclaration method = member.asMethodDeclaration().resolve();
@@ -376,41 +378,41 @@ public class AstGenerator {
 		String methodDoc = getJavadoc(member);
 		boolean override = !privateOverrides.contains(name) && member.getAnnotationByClass(Override.class).isPresent();
 		// boolean getters and setters are kept as regular methods to prevent confusing naming
-		if (name.length() > 3 && name.startsWith("get") && returnType != TypeRef.VOID
+		if (useGettersAndSetters && name.length() > 3 && name.startsWith("get") && returnType != TypeRef.VOID
 				&& returnType != TypeRef.BOOLEAN && method.getNumberOfParams() == 0
 				&& method.getTypeParameters().isEmpty()) {
 			// GraalJS will make this getter work, somehow
-			return new Getter(name, returnType, methodDoc, isPublic, method.isStatic(), override);
-		} else if (name.length() > 3 && name.startsWith("set") && method.getNumberOfParams() == 1
+			return new Getter(name, returnType, methodDoc, isPublic, method.isStatic(), override, typeName);
+		} else if (useGettersAndSetters && name.length() > 3 && name.startsWith("set") && method.getNumberOfParams() == 1
 				&& TypeRef.fromType(method.getParam(0).getType()) != TypeRef.BOOLEAN
 				&& method.getTypeParameters().isEmpty()) {
 			// GraalJS will make this setter work, somehow
 			return new Setter(name, TypeRef.fromType(method.getParam(0).getType(),
-					nullableParams[0]), methodDoc, isPublic, method.isStatic(), override);
+					nullableParams[0]), methodDoc, isPublic, method.isStatic(), override, typeName);
 		} else { // Normal method
 			// Resolve type parameters and add to member list
 			return new Method(name, returnType, getParameters(method, nullableParams),
 					method.getTypeParameters().stream().map(TypeRef::fromDeclaration).collect(Collectors.toList()),
-					methodDoc, isPublic, method.isStatic(), override);
+					methodDoc, isPublic, method.isStatic(), override, typeName);
 		}
 	}
 	
 	private void processField(Consumer<Member> addMember, FieldDeclaration member, boolean isInterface,
-			boolean isPublic, boolean lombokGetter, boolean lombokSetter) {
+			boolean isPublic, boolean lombokGetter, boolean lombokSetter, String typeName) {
 		FieldDeclaration field = member.asFieldDeclaration();
 		boolean nullable = field.isAnnotationPresent("Nullable");
 		NodeList<VariableDeclarator> vars = field.getVariables();
-		boolean isStatic = isInterface || field.isStatic();
-		boolean isFinal = isInterface || field.isFinal();
+		boolean isStatic = !isInterface && field.isStatic();
+		boolean isFinal = !isInterface && field.isFinal();
 		if (vars.size() == 1) {
 			FieldProps props = new FieldProps(field.resolve(), getJavadoc(member),
 					nullable, isPublic, isStatic, isFinal, lombokGetter, lombokSetter);
-			processFieldValue(addMember, props);
+			processFieldValue(addMember, props, typeName);
 		} else { // Symbol solver can't resolve this for us
 			for (VariableDeclarator var : vars) {
 				FieldProps props = new FieldProps(var.resolve(), getJavadoc(member),
 						nullable, isPublic, isStatic, isFinal, lombokGetter, lombokSetter);
-				processFieldValue(addMember, props);
+				processFieldValue(addMember, props, typeName);
 			}
 		}
 	}
@@ -437,7 +439,7 @@ public class AstGenerator {
 		}
 	}
 	
-	private void processFieldValue(Consumer<Member> addMember, FieldProps props) {
+	private void processFieldValue(Consumer<Member> addMember, FieldProps props, String typeName) {
 		TypeRef type = TypeRef.fromType(props.value.getType(), props.nullable);
 		// Add normal field to AST
 		addMember.accept(new Field(props.value.getName(), type, props.javadoc,
@@ -445,10 +447,10 @@ public class AstGenerator {
 		
 		// Generate public getter/setter pair for field (Lombok)
 		if (props.lombokGetter) {
-			addMember.accept(new Getter(props.value.getName(), type, props.javadoc, true, props.isStatic, false));
+			addMember.accept(new Getter(props.value.getName(), type, props.javadoc, true, props.isStatic, false, typeName));
 		}
 		if (props.lombokSetter) {
-			addMember.accept(new Setter(props.value.getName(), type, props.javadoc, true, props.isStatic, false));
+			addMember.accept(new Setter(props.value.getName(), type, props.javadoc, true, props.isStatic, false, typeName));
 		}
 	}
 }

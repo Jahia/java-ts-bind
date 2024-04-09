@@ -15,9 +15,9 @@ public class Setter extends Method {
 	
 	private final String originalName;
 
-	public Setter(String name, TypeRef type, String javadoc, boolean isPublic, boolean isStatic, boolean isOverride) {
+	public Setter(String name, TypeRef type, String javadoc, boolean isPublic, boolean isStatic, boolean isOverride, String typeName) {
 		super(setterName(name), TypeRef.VOID, List.of(new Parameter(setterName(name), type, false)),
-				Collections.emptyList(), javadoc, isPublic, isStatic, isOverride);
+				Collections.emptyList(), javadoc, isPublic, isStatic, isOverride, typeName);
 		this.originalName = name;
 	}
 	

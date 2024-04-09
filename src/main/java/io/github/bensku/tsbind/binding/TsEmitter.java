@@ -71,9 +71,11 @@ public class TsEmitter {
 
 	private List<Pattern> excludeMethodPatterns = new ArrayList<>();
 
+	private boolean useGettersAndSetters;
+
 	private boolean lastPrintSkipped = false;
 	
-	public TsEmitter(String indentation, Map<TypeRef, String> typeNames, Map<String, TypeDefinition> types, boolean emitReadonly, List<String> excludeMethods) {
+	public TsEmitter(String indentation, Map<TypeRef, String> typeNames, Map<String, TypeDefinition> types, boolean emitReadonly, List<String> excludeMethods, boolean useGettersAndSetters) {
 		this.output = new StringBuilder();
 		this.indentation = indentation;
 		this.indenter = new Indenter();
@@ -82,6 +84,7 @@ public class TsEmitter {
 		this.generators = new HashMap<>();
 		this.types = types;
 		this.emitReadOnly = emitReadonly;
+		this.useGettersAndSetters = useGettersAndSetters;
 		if (excludeMethods != null) {
 			for (String pattern : excludeMethods) {
 				excludeMethodPatterns.add(Pattern.compile(pattern));
@@ -175,7 +178,7 @@ public class TsEmitter {
 			if (node instanceof Method) {
 				Method method = (Method) node;
 				for (Pattern pattern : excludeMethodPatterns) {
-					if (pattern.matcher(method.name()).matches()) {
+					if (pattern.matcher(method.typeName() + "." + method.name()).matches()) {
 						lastPrintSkipped = true;
 						return this;
 					}
@@ -257,5 +260,9 @@ public class TsEmitter {
 	@Override
 	public String toString() {
 		return output.toString();
+	}
+
+	public boolean isUseGettersAndSetters() {
+		return useGettersAndSetters;
 	}
 }

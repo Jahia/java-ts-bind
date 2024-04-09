@@ -165,7 +165,7 @@ public class TsClass implements TsGenerator<TypeDefinition> {
 			if (member instanceof Getter || member instanceof Setter) {
 				Method original = (Method) member;
 				Method method = new Method(original.originalName(), original.returnType, original.params,
-						original.typeParams, original.javadoc.orElse(null), original.isPublic, original.isStatic, original.isOverride);
+						original.typeParams, original.javadoc.orElse(null), original.isPublic, original.isStatic, original.isOverride, original.typeName);
 				members.set(index, method);
 			} // other kinds of conflicts we don't touch
 		}
@@ -227,23 +227,55 @@ public class TsClass implements TsGenerator<TypeDefinition> {
 				return;
 			}
 		}
-		
-		out.print("export class ");
-		emitName(node.ref.simpleName(), node.ref, out);
-		
-		// We can't use TS 'implements', because TS interfaces
-		// don't support e.g getters/setters
-		// Instead, we translate Java implements to TS extends
-		List<TypeRef> superTypes = new ArrayList<>(node.superTypes);
-		superTypes.addAll(node.interfaces);
+
 		boolean mixinTrick = false;
-		if (!superTypes.isEmpty()) {
-			// At least one supertype; there may be more, but we'll use mixin trick for that
-			// (we still want to extend even just one type to get @inheritDoc)
-			out.print(" extends %s", superTypes.get(0));
-		}
-		if (superTypes.size() > 1) {
-			mixinTrick = true; // Trick multiple inheritance
+		boolean inInterface = false;
+		if (out.isUseGettersAndSetters()) {
+			out.print("export class ");
+			emitName(node.ref.simpleName(), node.ref, out);
+
+			// We can't use TS 'implements', because TS interfaces
+			// don't support e.g getters/setters
+			// Instead, we translate Java implements to TS extends
+			List<TypeRef> superTypes = new ArrayList<>(node.superTypes);
+			superTypes.addAll(node.interfaces);
+			if (!superTypes.isEmpty()) {
+				// At least one supertype; there may be more, but we'll use mixin trick for that
+				// (we still want to extend even just one type to get @inheritDoc)
+				out.print(" extends %s", superTypes.get(0));
+			}
+			if (superTypes.size() > 1) {
+				mixinTrick = true; // Trick multiple inheritance
+			}
+		} else {
+			String kind = node.kind.toString().toLowerCase();
+			if (node.kind == TypeDefinition.Kind.ENUM) {
+				// we map enums to classes in TS
+				kind = "class";
+			}
+			out.print("export " + kind + " ");
+			emitName(node.ref.simpleName(), node.ref, out);
+			if (node.kind == TypeDefinition.Kind.CLASS || node.kind == TypeDefinition.Kind.ENUM) {
+				List<TypeRef> superTypes = new ArrayList<>(node.superTypes);
+				if (!superTypes.isEmpty()) {
+					out.print(" extends ");
+					out.print(superTypes,", ");
+				}
+				List<TypeRef> interfaces = new ArrayList<>(node.interfaces);
+				if (!interfaces.isEmpty()) {
+					out.print(" implements ");
+					out.print(interfaces, ", ");
+				}
+			} else if (node.kind == TypeDefinition.Kind.INTERFACE) {
+				inInterface = true;
+				List<TypeRef> superTypes = new ArrayList<>(node.superTypes);
+				if (!superTypes.isEmpty()) {
+					out.print(" extends ");
+					out.print(superTypes,", ");
+				}
+			} else {
+				throw new AssertionError("Unknown type kind: " + node.kind);
+			}
 		}
 		out.println(" {");
 		
@@ -273,6 +305,8 @@ public class TsClass implements TsGenerator<TypeDefinition> {
 			emitName(node.ref.simpleName(), node.ref, out);
 			out.print(" extends ");
 			// FIXME quick hack to get List -> array conversion out of supertypes
+			List<TypeRef> superTypes = new ArrayList<>(node.superTypes);
+			superTypes.addAll(node.interfaces);
 			out.print(superTypes.stream()
 					.filter(type -> !type.baseType().equals(TypeRef.LIST)).collect(Collectors.toList()), ", ");
 			out.println(" {}");
