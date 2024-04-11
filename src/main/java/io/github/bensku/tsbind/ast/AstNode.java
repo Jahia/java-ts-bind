@@ -9,4 +9,10 @@ public interface AstNode {
 	 * @param visitor Visitor to be called for node found..
 	 */
 	void walk(Consumer<AstNode> visitor);
+
+	/**
+	 * Require the toString method for all node implementation to make it easier to generate debugging output
+	 * @return a String representation of the node's fields.
+	 */
+	String toString();
 }

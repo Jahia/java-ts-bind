@@ -26,8 +26,8 @@ This is a command-line application.
   * By default, everything is included
 * --exclude: prefixes for excluded paths
   * Processed after includes; nothing is excluded by default
-* --blacklist: blacklisted type fragments
-  * Types that have names which contain any of these are omitted
+* --blacklist: blacklisted type regular expression patterns
+  * Types that have names which equals any of these are omitted
   * Methods and fields that would use them are also omitted!
 * --packageJson: read these options from a JSON file
   * The options should be placed under `tsbindOptions` object
@@ -36,8 +36,12 @@ This is a command-line application.
 * --index: generate index.d.ts that references other generated files
 * --emitReadOnly : if set, deactivates constructors and setter in the generated types
 * --excludeMethods : a list of regular expressions that will be used to exclude methods by name
-* --groupByDomain : if set, the generated types will be grouped by domain, if not set the output will instead be grouped by module name
-* --useGettersAndSetters : if set, Typescript getters and setters will be used to group methods into setters and getters. If not set this mechanism is disabled and no intelligence will be performed to regroup getter and setter methods.
+* --groupByModule : if set, the generated types will be grouped by module name, if not set the output will instead be grouped by domain
+* --gettersAndSettersOff : if false, Typescript getters and setters will be used to group methods into setters and getters. If true this mechanism is disabled and no intelligence will be performed to regroup getter and setter methods.
+* --methodWhitelist : a list of methods using regular expressions that if they match they will be the only methods retained in the generated types
+* --flattenTypes : if set the generated types will be flattened, which might that all the inherited methods will be included in the generated types and inheritance will be removed. This makes it possible to reduce the number of types for APIs
+* --forceParentJavadocs : if set it will always copy javadocs if they exist on parent types and don't exist locally.
+* --debugMatching: if set it will output some useful debug information about the black/white listing mechanism
 
 ## Limitations
 java-ts-bind does not necessarily generate *valid* TypeScript declarations.

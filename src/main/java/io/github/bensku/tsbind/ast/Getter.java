@@ -3,7 +3,7 @@ package io.github.bensku.tsbind.ast;
 import java.util.Collections;
 
 public class Getter extends Method {
-	
+
 	public static String getterName(String methodName) {
 		if (methodName.startsWith("is")) {
 			return methodName.substring(2, 3).toLowerCase() + methodName.substring(3);
@@ -13,16 +13,21 @@ public class Getter extends Method {
 			return methodName;
 		}
 	}
-	
+
 	private final String originalName;
 
 	public Getter(String name, TypeRef type, String javadoc, boolean isPublic, boolean isStatic, boolean isOverride, String typeName) {
 		super(getterName(name), type, Collections.emptyList(), Collections.emptyList(), javadoc, isPublic, isStatic, isOverride, typeName);
 		this.originalName = name;
 	}
-	
+
 	public String originalName() {
 		return originalName;
+	}
+
+	@Override
+	public String toString() {
+		return "get " + name + ": " + returnType;
 	}
 
 }

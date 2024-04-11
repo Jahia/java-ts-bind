@@ -6,12 +6,12 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public class TypeDefinition extends Member {
-	
+
 	/**
 	 * Type reference to the defined type.
 	 */
 	public final TypeRef ref;
-	
+
 	public enum Kind {
 		CLASS,
 		INTERFACE,
@@ -19,32 +19,32 @@ public class TypeDefinition extends Member {
 		ANNOTATION,
 		FUNCTIONAL_INTERFACE
 	}
-	
+
 	/**
 	 * What kind of type this is.
 	 */
 	public final Kind kind;
-	
+
 	/**
 	 * If this type is abstract.
 	 */
 	public final boolean isAbstract;
-	
+
 	/**
 	 * Superclasses (and interfaces, if this is an interface) of this type.
 	 */
 	public final List<TypeRef> superTypes;
-	
+
 	/**
 	 * Interfaces of this type (if any).
 	 */
 	public final List<TypeRef> interfaces;
-	
+
 	/**
 	 * List of members (methods, fields, inner types) of this type.
 	 */
 	public final List<Member> members;
-	
+
 	/**
 	 * Members that this type has.
 	 */
@@ -62,7 +62,7 @@ public class TypeDefinition extends Member {
 		this.memberNames = new HashSet<>();
 		members.stream().map(Member::name).forEach(memberNames::add);
 	}
-	
+
 	public boolean hasMember(String name) {
 		return memberNames.contains(name);
 	}
@@ -86,4 +86,8 @@ public class TypeDefinition extends Member {
 		return ref.name();
 	}
 
+	@Override
+	public String toString() {
+		return name();
+	}
 }

@@ -12,7 +12,7 @@ public class Setter extends Method {
 			return methodName;
 		}
 	}
-	
+
 	private final String originalName;
 
 	public Setter(String name, TypeRef type, String javadoc, boolean isPublic, boolean isStatic, boolean isOverride, String typeName) {
@@ -20,8 +20,13 @@ public class Setter extends Method {
 				Collections.emptyList(), javadoc, isPublic, isStatic, isOverride, typeName);
 		this.originalName = name;
 	}
-	
+
 	public String originalName() {
 		return originalName;
+	}
+
+	@Override
+	public String toString() {
+		return "set " + name + ": " + returnType;
 	}
 }

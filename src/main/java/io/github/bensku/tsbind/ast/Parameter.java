@@ -3,7 +3,7 @@ package io.github.bensku.tsbind.ast;
 import java.util.function.Consumer;
 
 public class Parameter implements AstNode {
-	
+
 	/**
 	 * Name of the parameter.
 	 */
@@ -13,7 +13,7 @@ public class Parameter implements AstNode {
 	 * Parameter type.
 	 */
 	public final TypeRef type;
-	
+
 	/**
 	 * If this is a varargs parameter.
 	 */
@@ -29,6 +29,11 @@ public class Parameter implements AstNode {
 	public void walk(Consumer<AstNode> visitor) {
 		visitor.accept(this);
 		type.walk(visitor);
+	}
+
+	@Override
+	public String toString() {
+		return name + ": " + type;
 	}
 
 }

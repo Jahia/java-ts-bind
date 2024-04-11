@@ -15,7 +15,7 @@ public class Args {
 
 	public enum OutputFormat {
 		JSON((args) -> new JsonEmitter()),
-		TS_TYPES((args) -> new BindingGenerator(args.index, args.emitReadOnly, args.excludeMethods, args.useGettersAndSetters, args.groupByDomain));
+		TS_TYPES((args) -> new BindingGenerator(args.index, args.emitReadOnly, args.excludeMethods, args.gettersAndSettersOff, args.groupByModule));
 
 		public final Function<Args, AstConsumer<String>> consumerSource;
 
@@ -51,8 +51,14 @@ public class Args {
 	@Parameter(names = "--blacklist")
 	public List<String> blacklist = List.of();
 
-	@Parameter(names = "--useGettersAndSetters")
-	public boolean useGettersAndSetters;
+	@Parameter(names = "--methodWhitelist")
+	public List<String> methodWhitelist = List.of();
+
+	@Parameter(names = "--fieldWhitelist")
+	public List<String> fieldWhitelist = List.of();
+
+	@Parameter(names = "--gettersAndSettersOff")
+	public boolean gettersAndSettersOff;
 
 	@Parameter(names = "--out")
 	public Path out = Path.of("");
@@ -69,7 +75,19 @@ public class Args {
 	@Parameter(names = "--excludeMethods")
 	public List<String> excludeMethods = List.of();
 
-	@Parameter(names = "--groupByDomain")
-	public boolean groupByDomain;
+	@Parameter(names = "--groupByModule")
+	public boolean groupByModule;
+
+	@Parameter(names = "--flattenTypes")
+	public boolean flattenTypes;
+
+	@Parameter(names = "--forceParentJavadocs")
+	public boolean forceParentJavadocs;
+
+	@Parameter(names = "--rootTypes")
+	public List<String> rootTypes = List.of();
+
+	@Parameter(names = "--debugMatching")
+	public boolean debugMatching;
 
 }

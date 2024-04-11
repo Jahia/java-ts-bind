@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 public class Field extends Member {
-	
+
 	/**
 	 * Field name.
 	 */
@@ -14,12 +14,12 @@ public class Field extends Member {
 	 * Type of the field.
 	 */
 	public final TypeRef type;
-	
+
 	/**
 	 * If this field is final (readonly).
 	 */
 	public final boolean isFinal;
-	
+
 	public Field(String name, TypeRef type, String javadoc, boolean isPublic, boolean isStatic, boolean isFinal) {
 		super(javadoc, isPublic, isStatic);
 		Objects.requireNonNull(name);
@@ -38,5 +38,10 @@ public class Field extends Member {
 	@Override
 	public String name() {
 		return name;
+	}
+
+	@Override
+	public String toString() {
+		return name + ": " + type;
 	}
 }

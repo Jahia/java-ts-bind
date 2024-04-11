@@ -14,24 +14,24 @@ public class Method extends Member {
 	 * Return type of the method.
 	 */
 	public final TypeRef returnType;
-	
+
 	/**
 	 * Parameters of the method
 	 */
 	public final List<Parameter> params;
-	
+
 	/**
 	 * Type (generic) parameters.
 	 */
 	public final List<TypeRef> typeParams;
-	
+
 	/**
 	 * If this is annotated with {@link Override}.
 	 */
 	public final boolean isOverride;
 
 	public final String typeName;
-	
+
 	public Method(String name, TypeRef returnType, List<Parameter> params, List<TypeRef> typeParams, String javadoc,
 			boolean isPublic, boolean isStatic, boolean isOverride, String typeName) {
 		super(javadoc, isPublic, isStatic);
@@ -42,7 +42,7 @@ public class Method extends Member {
 		this.isOverride = isOverride;
 		this.typeName = typeName;
 	}
-	
+
 	/**
 	 * Original name of the method. For setters and getters, this is different
 	 * from the {@link #name()}.
@@ -67,6 +67,11 @@ public class Method extends Member {
 
 	public String typeName() {
 		return typeName;
+	}
+
+	@Override
+	public String toString() {
+		return name + "(" + params + "): " + returnType;
 	}
 
 }

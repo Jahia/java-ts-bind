@@ -33,20 +33,20 @@ public class BindingGenerator implements AstConsumer<String> {
 	 */
 	private final boolean buildIndex;
 
-	private boolean emitReadOnly = false;
+	private boolean emitReadOnly;
 
-	private List<String> excludeMethods = new ArrayList<>();
+	private List<String> excludeMethods;
 
-	private boolean useGettersAndSetters = false;
+	private boolean gettersAndSettersOff;
 
-	private boolean groupByDomain = true;
+	private boolean groupByModule;
 
-	public BindingGenerator(boolean buildIndex, boolean emitReadOnly, List<String> excludeMethods, boolean useGettersAndSetters, boolean groupByDomain) {
+	public BindingGenerator(boolean buildIndex, boolean emitReadOnly, List<String> excludeMethods, boolean gettersAndSettersOff, boolean groupByModule) {
 		this.buildIndex = buildIndex;
 		this.emitReadOnly = emitReadOnly;
 		this.excludeMethods = excludeMethods;
-		this.useGettersAndSetters = useGettersAndSetters;
-		this.groupByDomain = groupByDomain;
+		this.gettersAndSettersOff = gettersAndSettersOff;
+		this.groupByModule = groupByModule;
 	}
 
 	@Override
@@ -59,7 +59,7 @@ public class BindingGenerator implements AstConsumer<String> {
 		Map<String, StringBuilder> outputs = new HashMap<>();
 		for (TsModule module : modules.values()) {
 			String basePkg = getBasePkg(module.name()).replace('.', '_');
-			if (!groupByDomain) {
+			if (groupByModule) {
 				basePkg = module.name();
 			}
 			StringBuilder out = outputs.computeIfAbsent(basePkg, key -> new StringBuilder());
@@ -101,7 +101,7 @@ public class BindingGenerator implements AstConsumer<String> {
 				.addType(type)
 				.emitReadOnly(emitReadOnly)
 				.excludeMethods(excludeMethods)
-				.useGettersAndSetters(useGettersAndSetters);
+				.gettersAndSettersOff(gettersAndSettersOff);
 
 		// Fake inner classes with TS modules
 		// Nested types in TS are quite different from Java, so we can't use them

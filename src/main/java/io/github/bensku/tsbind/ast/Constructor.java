@@ -9,5 +9,9 @@ public class Constructor extends Method {
 		super(name, TypeRef.VOID, params, Collections.emptyList(), javadoc, isPublic, false, false, typeName);
 	}
 
-	
+	@Override
+	public String toString() {
+		return "new " + name;
+	}
+
 }

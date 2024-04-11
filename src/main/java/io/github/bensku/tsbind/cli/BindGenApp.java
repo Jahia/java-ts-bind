@@ -5,11 +5,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 import com.beust.jcommander.JCommander;
@@ -29,15 +25,16 @@ import io.github.bensku.tsbind.AstConsumer.Result;
 import io.github.bensku.tsbind.AstGenerator;
 import io.github.bensku.tsbind.SourceUnit;
 import io.github.bensku.tsbind.ast.TypeDefinition;
+import io.github.bensku.tsbind.ast.TypeRef;
 import io.github.bensku.tsbind.binding.EarlyTypeTransformer;
 
 public class BindGenApp {
-	
+
 	public static void main(String... argv) throws IOException, InterruptedException {
 		// Parse command-line arguments
 		Args args = new Args();
 		JCommander.newBuilder().addObject(args).build().parse(argv);
-		
+
 		if (args.packageJson != null) {
 			args = new GsonBuilder()
 					.registerTypeAdapter(Path.class, new TypeAdapter<Path>() {
@@ -58,13 +55,13 @@ public class BindGenApp {
 				throw new IllegalArgumentException("missing tsbindOptions in --packageJson");
 			}
 		}
-		
+
 		// Download the --artifact from Maven if provided
 		List<Path> inputPaths;
 		if (!args.artifacts.isEmpty()) {
 			MavenResolver resolver = new MavenResolver(Files.createTempDirectory("tsbind"), args.repos);
 			args.repos.add("https://repo1.maven.org/maven2"); // Maven central as last resort
-			
+
 			// Add all artifacts to input paths and symbols
 			inputPaths = new ArrayList<>();
 			for (String artifact : args.artifacts) {
@@ -77,17 +74,17 @@ public class BindGenApp {
 			inputPaths = args.in;
 		}
 		System.out.println("Generating types for " + inputPaths + " to " + args.out);
-		
+
 		// Prepare for AST generation
 		JavaParser parser = setupParser(args.symbols);
-		AstGenerator astGenerator = new AstGenerator(parser, args.blacklist, args.useGettersAndSetters);
-		
+		AstGenerator astGenerator = new AstGenerator(parser, args.blacklist, args.methodWhitelist, args.fieldWhitelist, args.gettersAndSettersOff, args.debugMatching);
+
 		// Walk over input Java source files
 		String offset = args.offset;
 		List<String> include = args.include;
 		List<String> exclude = args.exclude;
 		Path outDir = args.out;
-		
+
 		try (Stream<Path> files = inputPaths.stream().map(t -> {
 				if (Files.isDirectory(t)) {
 					return t;
@@ -115,7 +112,7 @@ public class BindGenApp {
 			.filter(Files::isRegularFile)
 			.filter(f -> f.getFileName().toString().endsWith(".java"))
 			.filter(f -> !f.getFileName().toString().equals("package-info.java"))) {
-			Map<String, TypeDefinition> types = new HashMap<>();
+			Map<String, TypeDefinition> types = new TreeMap<>();
 			files.map(path -> {
 				try {
 					return new SourceUnit(path.toString(), Files.readString(path));
@@ -128,13 +125,49 @@ public class BindGenApp {
 				System.out.println("Parsed type " + type.name());
 				types.put(type.name(), type);
 			});
-			
+
 			// Apply early transformation passes that need all types
-			EarlyTypeTransformer earlyTransform = new EarlyTypeTransformer(types);
+			EarlyTypeTransformer earlyTransform = new EarlyTypeTransformer(types, args.methodWhitelist);
 			for (TypeDefinition def : types.values()) {
 				earlyTransform.addMissingOverloads(def);
+ 			}
+			if (args.forceParentJavadocs) {
+				for (TypeDefinition def : types.values()) {
+					earlyTransform.forceParentJavadocs(def);
+				}
 			}
-			
+			if (args.flattenTypes) {
+				for (TypeDefinition def : types.values()) {
+					earlyTransform.flattenType(def);
+				}
+			}
+
+			if (!args.rootTypes.isEmpty()) {
+				// We search all the accessible types and keep only the ones accessible through the root types
+				Set<String> accessibleTypes = new TreeSet<>(args.rootTypes);
+				int oldAccessibleTypeSize = 0;
+				// We loop here because we need to keep adding types until we don't add any more
+				while (oldAccessibleTypeSize < accessibleTypes.size()) {
+					oldAccessibleTypeSize = accessibleTypes.size();
+					for (TypeDefinition def : types.values()) {
+						if (accessibleTypes.contains(def.name())) {
+							accessibleTypes.add(def.name());
+							def.walk(node -> {
+								if (node instanceof TypeDefinition) {
+									accessibleTypes.add(((TypeDefinition) node).name());
+								} else if (node instanceof TypeRef) {
+									accessibleTypes.add(((TypeRef) node).name());
+								}
+							});
+						}
+					}
+				}
+
+				// then we purge all the types that are not accessible from the root types
+				types.keySet().removeIf(key -> !accessibleTypes.contains(key));
+
+			}
+
 			Stream<Result<String>> results = args.format.consumerSource.apply(args)
 					.consume(types);
 			results.forEach(result -> {
@@ -148,7 +181,7 @@ public class BindGenApp {
 			});
 		}
 	}
-	
+
 	private static boolean isIncluded(String name, List<String> includes, List<String> excludes) {
 		boolean include = false;
 		for (String prefix : includes) {
@@ -167,14 +200,14 @@ public class BindGenApp {
 		}
 		return true; // Included, not excluded
 	}
-	
+
 	private static JavaParser setupParser(List<Path> symbolSources) throws IOException {
 		CombinedTypeSolver typeSolver = new CombinedTypeSolver();
 		typeSolver.add(new ReflectionTypeSolver());
 		for (Path jar : symbolSources) {
 			typeSolver.add(new JarTypeSolver(jar));
 		}
-		
+
 		JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeSolver);
 		ParserConfiguration config = new ParserConfiguration();
 		config.setLanguageLevel(LanguageLevel.JAVA_16);

@@ -275,10 +275,10 @@
       "org.osgi.framework.ServiceListener",
       "org.xml.sax.ContentHandler"
     ],
-    "useGettersAndSetters": false,
+    "gettersAndSettersOff": true,
     "index": false,
     "emitReadOnly": true,
-    "groupByDomain": false,
+    "groupByModule": true,
     "excludeMethods": [
       "java\\.lang\\.CharSequence\\.compare",
       "java\\.util\\..*of",

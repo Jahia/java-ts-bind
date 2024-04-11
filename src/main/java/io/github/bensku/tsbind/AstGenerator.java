@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.github.javaparser.JavaParser;
@@ -54,20 +55,29 @@ import io.github.bensku.tsbind.ast.TypeRef;
 public class AstGenerator {
 
 	private final JavaParser parser;
-	
+
 	/**
 	 * Blacklisted type name fragments. Types that match any of these are never
 	 * emitted. All {@link Member members} that contain them are also ignored.
 	 */
-	private final List<String> blacklist;
-	private boolean useGettersAndSetters = true;
-	
-	public AstGenerator(JavaParser parser, List<String> blacklist, boolean useGettersAndSetters) {
+	private final List<Pattern> blacklistPatterns;
+
+	private final List<Pattern> methodWhiteListPatterns;
+
+	private final List<Pattern> fieldWhiteListPatterns;
+	private boolean gettersAndSettersOff;
+
+	private boolean debugMatching;
+
+	public AstGenerator(JavaParser parser, List<String> blacklist, List<String> methodWhiteList, List<String> fieldWhiteList, boolean gettersAndSettersOff, boolean debugMatching) {
 		this.parser = parser;
-		this.blacklist = blacklist;
-		this.useGettersAndSetters = useGettersAndSetters;
+		this.blacklistPatterns = blacklist.stream().map(Pattern::compile).collect(Collectors.toList());
+		this.gettersAndSettersOff = gettersAndSettersOff;
+		this.methodWhiteListPatterns = methodWhiteList.stream().map(Pattern::compile).collect(Collectors.toList());
+		this.fieldWhiteListPatterns = fieldWhiteList.stream().map(Pattern::compile).collect(Collectors.toList());
+		this.debugMatching = debugMatching;
 	}
-	
+
 	/**
 	 * Parses type AST from source code.
 	 * @param source Source unit (single Java file).
@@ -75,7 +85,7 @@ public class AstGenerator {
 	 */
 	public Optional<TypeDefinition> parseType(SourceUnit source) {
 		// FIXME don't log errors here, CLI might not be only user in future
-		
+
 		ParseResult<CompilationUnit> result = parser.parse(source.code);
 		if (!result.isSuccessful()) {
 			//throw new IllegalArgumentException("failed to parse given source code: " + result.getProblems());
@@ -101,7 +111,7 @@ public class AstGenerator {
 			return Optional.empty();
 		}
 	}
-	
+
 	private List<Parameter> getParameters(ResolvedMethodLikeDeclaration method, Boolean[] nullable) {
 		List<Parameter> params = new ArrayList<>(method.getNumberOfParams());
 		for (int i = 0; i < method.getNumberOfParams(); i++) {
@@ -111,7 +121,7 @@ public class AstGenerator {
 		}
 		return params;
 	}
-	
+
 	private String getJavadoc(Node node) {
 		return node.getComment().map(comment -> {
 			if (comment.isJavadocComment()) {
@@ -120,36 +130,83 @@ public class AstGenerator {
 			return null;
 		}).orElse(null);
 	}
-	
+
 	/**
 	 * Checks if a member is or uses blacklisted types.
 	 * @param node Member to check.
 	 * @return Whether the member should be omitted.
 	 */
-	private boolean isBlacklisted(AstNode node) {
+	private boolean isBlacklisted(AstNode node, String typeName, String prefix) {
 		// If this is a type reference or declaration, check if it is blacklisted
 		if (node instanceof TypeRef || node instanceof TypeDefinition) {
 			TypeRef ref = node instanceof TypeDefinition ? ((TypeDefinition) node).ref : (TypeRef) node;
 			String name = ref.name();
-			for (String fragment : blacklist) {
-				if (name.contains(fragment)) {
+			for (Pattern blacklistPattern : blacklistPatterns) {
+				if (blacklistPattern.matcher(name).matches()) {
+					if (debugMatching) {
+						System.out.println(prefix + " Blacklisted: " + node + " (from blacklist match)");
+					}
 					return true; // Blacklisted
 				}
 			}
 			return false; // Not blacklisted!
 		}
-		
+
+		boolean whitelisted = false;
+		if (!methodWhiteListPatterns.isEmpty()) {
+			if (node instanceof Method) {
+				Method method = (Method) node;
+				for (Pattern pattern : methodWhiteListPatterns) {
+					if (pattern.matcher(typeName + "." + method.name()).matches()) {
+						if (debugMatching) {
+							System.out.println(prefix + " Whitelisted: " + node + " (from method whitelist match)");
+						}
+						whitelisted = true;
+						break;
+					}
+				}
+			}
+		}
+		if (!fieldWhiteListPatterns.isEmpty()) {
+			if (node instanceof Field) {
+				Field field = (Field) node;
+				for (Pattern pattern : fieldWhiteListPatterns) {
+					if (pattern.matcher(typeName + "." + field.name).matches()) {
+						if (debugMatching) {
+							System.out.println(prefix + " Whitelisted: " + node + " (from field whitelist match)");
+						}
+						whitelisted = true;
+						break;
+					}
+				}
+			}
+		}
+		if (node instanceof Parameter) {
+			whitelisted = true;
+		}
+
 		// Check non-type node children
 		AtomicBoolean childBlacklisted = new AtomicBoolean(false);
 		node.walk(n -> {
 			// Avoid infinite recursion by excluding node given to us as parameter
-			if (n != node && isBlacklisted(n)) {
+			if (n != node && isBlacklisted(n, typeName, prefix + "    ")) {
 				childBlacklisted.setPlain(true); // Blacklisted
+				if (debugMatching) {
+					System.out.println(prefix + " Blacklisted by child node: " + n);
+				}
 			}
 		});
-		return childBlacklisted.getPlain();
+		if (childBlacklisted.getPlain()) {
+			return true;
+		}
+		if (!whitelisted) {
+			if (debugMatching) {
+				System.out.println(prefix + " Blacklisted: " + typeName + " for node " + node);
+			}
+		}
+		return !whitelisted;
 	}
-	
+
 	private void processMember(String typeName, TypeDeclaration<?> type, TypeDefinition.Kind typeKind,
 			Set<String> privateOverrides, boolean lombokGetter, boolean lombokSetter,
 			BodyDeclaration<?> member, Consumer<Member> addMember) {
@@ -164,13 +221,13 @@ public class AstGenerator {
 					throw e;
 				}
 			}
-		}	
+		}
 		if (!isPublic) {
 			// For now, only private fields are needed
 			// Work as if other non-public members did not exist
 			return; // Neither implicitly or explicitly public
 		}
-		
+
 		// Process type depending on what it is
 		if (member.isTypeDeclaration()) {
 			// Recursively process an inner type
@@ -188,32 +245,32 @@ public class AstGenerator {
 			addMember.accept(processMethod(member.asMethodDeclaration(), privateOverrides, typeName));
 		}
 	}
-	
+
 	private Optional<TypeDefinition> processType(String typeName, TypeDeclaration<?> type) {
-		ResolvedReferenceTypeDeclaration resolved = type.resolve();		
+		ResolvedReferenceTypeDeclaration resolved = type.resolve();
 		TypeRef typeRef = TypeRef.fromDeclaration(typeName, resolved);
 		List<Member> members = new ArrayList<>();
-		
+
 		// Create a lambda to support filtering members before they're added
 		Consumer<Member> addMember = (member) -> {
-			if (!isBlacklisted(member)) {
+			if (!isBlacklisted(member, typeName, "")) {
 				members.add(member);
 			}
 		};
-		
+
 		// If this is an enum, generate enum constants and compiler-generated methods
 		// JavaParser doesn't consider enum constants "members"
 		if (type.isEnumDeclaration()) {
 			for (EnumConstantDeclaration constant : type.asEnumDeclaration().getEntries()) {
 				addMember.accept(new Field(constant.getNameAsString(), typeRef, getJavadoc(constant), true, true, true));
 			}
-			
+
 			addMember.accept(new Method("valueOf", typeRef,
 					List.of(new Parameter("name", TypeRef.STRING, false)),
 					List.of(), null, true, true, false, typeName));
 			addMember.accept(new Method("values", typeRef.makeArray(1), List.of(), List.of(), null, true, true, false, typeName));
 		}
-		
+
 		// Figure out supertypes and interfaces (needed by some members)
 		TypeDefinition.Kind typeKind;
 		List<TypeRef> superTypes;
@@ -231,18 +288,18 @@ public class AstGenerator {
 					typeKind = TypeDefinition.Kind.FUNCTIONAL_INTERFACE;
 				}
 			}
-			
+
 			PublicFilterResult extendedResult = filterPublicTypes(decl.getExtendedTypes());
 			PublicFilterResult implementedResult = filterPublicTypes(decl.getImplementedTypes());
 			superTypes = extendedResult.publicTypes.stream()
 					.map(TypeRef::fromType)
-					.filter(t -> !isBlacklisted(t))
+					.filter(t -> !isBlacklisted(t, typeName, ""))
 					.collect(Collectors.toList());
 			interfaces = implementedResult.publicTypes.stream()
 					.map(TypeRef::fromType)
-					.filter(t -> !isBlacklisted(t))
+					.filter(t -> !isBlacklisted(t, typeName, ""))
 					.collect(Collectors.toList());
-			
+
 			extendedResult.privateTypes.forEach(t -> privateOverrides.addAll(getAllMethods(t)));
 			implementedResult.privateTypes.forEach(t -> privateOverrides.addAll(getAllMethods(t)));
 		} else if (type.isEnumDeclaration()) {
@@ -254,11 +311,11 @@ public class AstGenerator {
 			superTypes = List.of();
 			interfaces = List.of();
 		}
-		
+
 		// Lombok setter/getter support
 		boolean lombokGetter = type.isAnnotationPresent("Getter");
 		boolean lombokSetter = type.isAnnotationPresent("Setter");
-		
+
 		// Handle normal members
 		for (BodyDeclaration<?> member : type.getMembers()) {
 			try {
@@ -268,7 +325,7 @@ public class AstGenerator {
 				System.out.println("unresolved symbol " + e.getName() + " in " + typeName + "; omitting member");
 			}
 		}
-		
+
 		// Lombok autogenerated constructors
 		// AllArgsConstructor uses ALL instance fields
 		// RequiredArgsConstructor only for final and (TODO, not implemented) non-null fields
@@ -289,7 +346,7 @@ public class AstGenerator {
 					.collect(Collectors.toList());
 			addMember.accept(new Constructor(type.getNameAsString(), params, null, true, typeName));
 		}
-		
+
 		// Create type definition
 		String javadoc = getJavadoc(type);
 		return Optional.of(new TypeDefinition(javadoc, type.isStatic(), typeRef, typeKind, isAbstract,
@@ -300,7 +357,7 @@ public class AstGenerator {
 		public final List<ResolvedReferenceType> publicTypes = new ArrayList<>();
 		public final List<ResolvedReferenceType> privateTypes = new ArrayList<>();
 	}
-	
+
 	private PublicFilterResult filterPublicTypes(List<ClassOrInterfaceType> types) {
 		PublicFilterResult result = new PublicFilterResult();
 		for (ClassOrInterfaceType type : types) {
@@ -313,7 +370,7 @@ public class AstGenerator {
 		}
 		return result;
 	}
-	
+
 	private Set<String> getAllMethods(ResolvedReferenceType type) {
 		if (type == null) {
 			return Collections.emptySet();
@@ -335,7 +392,7 @@ public class AstGenerator {
 		}
 		return names;
 	}
-	
+
 	private boolean isPublic(TypeDeclaration<?> type, BodyDeclaration<?> member) {
 		// JPMS is ignored for now, would need to parse module infos for that
 		AccessSpecifier access = (member instanceof NodeWithModifiers<?>)
@@ -349,10 +406,10 @@ public class AstGenerator {
 			return type.asClassOrInterfaceDeclaration().isInterface();
 		}
 		// Enum constants are handled separately, JavaParser doesn't consider them members
-		
+
 		return false; // No reason to consider member public
 	}
-	
+
 	private boolean isPublic(ResolvedReferenceTypeDeclaration type) {
 		// Special case for functional interfaces that are converted to function types
 		// (you obviously can't extend those in TypeScript)
@@ -364,26 +421,26 @@ public class AstGenerator {
 		}
 		return false;
 	}
-	
+
 	private Method processMethod(MethodDeclaration member, Set<String> privateOverrides, String typeName) {
 		boolean isPublic = true; // Private methods are not yet needed, so they won't exist
-		
+
 		ResolvedMethodDeclaration method = member.asMethodDeclaration().resolve();
 		boolean nullableReturn = member.isAnnotationPresent("Nullable");
 		Boolean[] nullableParams = member.getParameters().stream()
 				.map(param -> param.isAnnotationPresent("Nullable")).toArray(Boolean[]::new);
-		
+
 		String name = method.getName();
 		TypeRef returnType = TypeRef.fromType(method.getReturnType(), nullableReturn);
 		String methodDoc = getJavadoc(member);
 		boolean override = !privateOverrides.contains(name) && member.getAnnotationByClass(Override.class).isPresent();
 		// boolean getters and setters are kept as regular methods to prevent confusing naming
-		if (useGettersAndSetters && name.length() > 3 && name.startsWith("get") && returnType != TypeRef.VOID
+		if (!gettersAndSettersOff && name.length() > 3 && name.startsWith("get") && returnType != TypeRef.VOID
 				&& returnType != TypeRef.BOOLEAN && method.getNumberOfParams() == 0
 				&& method.getTypeParameters().isEmpty()) {
 			// GraalJS will make this getter work, somehow
 			return new Getter(name, returnType, methodDoc, isPublic, method.isStatic(), override, typeName);
-		} else if (useGettersAndSetters && name.length() > 3 && name.startsWith("set") && method.getNumberOfParams() == 1
+		} else if (!gettersAndSettersOff && name.length() > 3 && name.startsWith("set") && method.getNumberOfParams() == 1
 				&& TypeRef.fromType(method.getParam(0).getType()) != TypeRef.BOOLEAN
 				&& method.getTypeParameters().isEmpty()) {
 			// GraalJS will make this setter work, somehow
@@ -396,7 +453,7 @@ public class AstGenerator {
 					methodDoc, isPublic, method.isStatic(), override, typeName);
 		}
 	}
-	
+
 	private void processField(Consumer<Member> addMember, FieldDeclaration member, boolean isInterface,
 			boolean isPublic, boolean lombokGetter, boolean lombokSetter, String typeName) {
 		FieldDeclaration field = member.asFieldDeclaration();
@@ -416,7 +473,7 @@ public class AstGenerator {
 			}
 		}
 	}
-	
+
 	private class FieldProps {
 		ResolvedValueDeclaration value;
 		String javadoc;
@@ -425,7 +482,7 @@ public class AstGenerator {
 		boolean isStatic;
 		boolean isFinal;
 		boolean lombokGetter, lombokSetter;
-		
+
 		FieldProps(ResolvedValueDeclaration value, String javadoc, boolean nullable, boolean isPublic,
 				boolean isStatic, boolean isFinal, boolean lombokGetter, boolean lombokSetter) {
 			this.value = value;
@@ -438,13 +495,13 @@ public class AstGenerator {
 			this.lombokSetter = lombokSetter;
 		}
 	}
-	
+
 	private void processFieldValue(Consumer<Member> addMember, FieldProps props, String typeName) {
 		TypeRef type = TypeRef.fromType(props.value.getType(), props.nullable);
 		// Add normal field to AST
 		addMember.accept(new Field(props.value.getName(), type, props.javadoc,
 				props.isPublic, props.isStatic, props.isFinal));
-		
+
 		// Generate public getter/setter pair for field (Lombok)
 		if (props.lombokGetter) {
 			addMember.accept(new Getter(props.value.getName(), type, props.javadoc, true, props.isStatic, false, typeName));
@@ -453,4 +510,5 @@ public class AstGenerator {
 			addMember.accept(new Setter(props.value.getName(), type, props.javadoc, true, props.isStatic, false, typeName));
 		}
 	}
+
 }

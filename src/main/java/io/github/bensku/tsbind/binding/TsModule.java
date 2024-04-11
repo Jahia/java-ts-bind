@@ -24,21 +24,21 @@ public class TsModule {
 	private List<String> excludeMethods = new ArrayList<>();
 
 	private boolean useGettersAndSetters = false;
-	
+
 	/**
 	 * Types in this module.
 	 */
 	private final List<TypeDefinition> types;
-	
+
 	public TsModule(String name) {
 		this.name = name;
 		this.types = new ArrayList<>();
 	}
-	
+
 	public String name() {
 		return name;
 	}
-	
+
 	public TsModule addType(TypeDefinition type) {
 		types.add(type);
 		return this;
@@ -54,14 +54,14 @@ public class TsModule {
 		return this;
 	}
 
-	public TsModule useGettersAndSetters(boolean useGettersAndSetters) {
+	public TsModule gettersAndSettersOff(boolean useGettersAndSetters) {
 		this.useGettersAndSetters = useGettersAndSetters;
 		return this;
 	}
-	
+
 	public void write(Map<String, TypeDefinition> typeTable, StringBuilder sb) {
 		sb.append("declare module '").append(name).append("' {\n");
-		
+
 		class Import {
 			/**
 			 * Module name to import from.
@@ -72,13 +72,13 @@ public class TsModule {
 			 * should be used in this module. In many cases, these are equal.
 			 */
 			final Map<String, String> names;
-			
+
 			Import(String from) {
 				this.from = from;
 				this.names = new HashMap<>();
 			}
 		}
-		
+
 		// Figure out type names and import declarations
 		Map<TypeRef, String> typeNames = findTypeNames();
 		Map<String, Import> imports = new HashMap<>();
@@ -89,7 +89,7 @@ public class TsModule {
 				imports.computeIfAbsent(from, n -> new Import(from)).names.put(type.simpleName(), name);
 			}
 		});
-		
+
 		// Emit import lines
 		for (Import line : imports.values()) {
 			sb.append("import { ");
@@ -102,15 +102,15 @@ public class TsModule {
 			}).collect(Collectors.joining(", ")));
 			sb.append(" } from '").append(line.from).append("';\n");
 		}
-		
+
 		// Generate classes of this module
 		TsEmitter emitter = new TsEmitter("  ", typeNames, typeTable, emitReadOnly, excludeMethods, useGettersAndSetters);
 		types.forEach(emitter::print);
 		sb.append(emitter.toString());
-		
+
 		sb.append("\n}\n");
 	}
-	
+
 	private Map<TypeRef, String> findTypeNames() {
 		Map<TypeRef, String> typeNames = new HashMap<>();
 		Set<String> simpleNames = new HashSet<>();
@@ -131,7 +131,7 @@ public class TsModule {
 			if (typeNames.containsKey(type)) {
 				return; // Same type used again, this is fine
 			}
-			
+
 			// On name collision, fall back to fully qualified names
 			String simple = type.simpleName();
 			if (simpleNames.contains(simple)) {

@@ -12,7 +12,7 @@ import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 
 public abstract class TypeRef implements AstNode {
-	
+
 	public static final Simple VOID = new Simple("void");
 	public static final Simple BOOLEAN = new Simple("boolean");
 	public static final Simple BYTE = new Simple("byte");
@@ -22,11 +22,11 @@ public abstract class TypeRef implements AstNode {
 	public static final Simple LONG = new Simple("long");
 	public static final Simple FLOAT = new Simple("float");
 	public static final Simple DOUBLE = new Simple("double");
-	
+
 	public static final Simple OBJECT = new Simple("java.lang.Object");
 	public static final Simple STRING = new Simple("java.lang.String");
 	public static final Simple LIST = new Simple("java.util.List");
-	
+
 	public static TypeRef fromType(ResolvedType type, boolean nullable) {
 		if (nullable) {
 			return new Nullable(fromType(type));
@@ -34,7 +34,7 @@ public abstract class TypeRef implements AstNode {
 			return fromType(type);
 		}
 	}
-	
+
 	public static TypeRef fromType(ResolvedType type) {
 		if (type.isVoid()) {
 			return VOID;
@@ -84,7 +84,7 @@ public abstract class TypeRef implements AstNode {
 			throw new AssertionError("unexpected type: " + type);
 		}
 	}
-	
+
 	private static Simple getSimpleType(String name) {
 		switch (name) {
 		case "java.lang.Boolean":
@@ -111,7 +111,7 @@ public abstract class TypeRef implements AstNode {
 			return new Simple(name);
 		}
 	}
-	
+
 	public static TypeRef fromDeclaration(ResolvedTypeParameterDeclaration decl) {
 		if (decl.hasUpperBound()) {
 			return new Parametrized(new Simple(decl.getName()),
@@ -122,11 +122,11 @@ public abstract class TypeRef implements AstNode {
 			return getSimpleType(decl.getName());
 		}
 	}
-	
+
 	public static TypeRef enumSuperClass(TypeRef enumType) {
 		return new Parametrized(getSimpleType("java.lang.Enum"), List.of(enumType));
 	}
-	
+
 	public static TypeRef fromDeclaration(String typeName, ResolvedReferenceTypeDeclaration decl) {
 		var typeParams = decl.getTypeParameters();
 		if (typeParams.isEmpty()) {
@@ -136,9 +136,9 @@ public abstract class TypeRef implements AstNode {
 			return new Parametrized(getSimpleType(decl.getQualifiedName()), params);
 		}
 	}
-		
+
 	public static class Simple extends TypeRef {
-		
+
 		/**
 		 * Fully qualified name of the type, excluding array dimensions.
 		 */
@@ -152,7 +152,7 @@ public abstract class TypeRef implements AstNode {
 		public String name() {
 			return name;
 		}
-		
+
 		@Override
 		public TypeRef baseType() {
 			return this; // Base of most types
@@ -162,7 +162,7 @@ public abstract class TypeRef implements AstNode {
 		public int arrayDimensions() {
 			return 0;
 		}
-		
+
 		@Override
 		public void walk(Consumer<AstNode> visitor) {
 			visitor.accept(this);
@@ -181,7 +181,7 @@ public abstract class TypeRef implements AstNode {
 			return name.hashCode();
 		}
 	}
-	
+
 	public static class Wildcard extends TypeRef {
 
 		/**
@@ -197,7 +197,7 @@ public abstract class TypeRef implements AstNode {
 		public String name() {
 			return "*";
 		}
-		
+
 		@Override
 		public TypeRef baseType() {
 			return this; // Extended type is definitely not base type
@@ -207,11 +207,11 @@ public abstract class TypeRef implements AstNode {
 		public int arrayDimensions() {
 			return 0;
 		}
-		
+
 		public TypeRef extendedType() {
 			return extendedType;
 		}
-		
+
 		@Override
 		public void walk(Consumer<AstNode> visitor) {
 			visitor.accept(this);
@@ -230,16 +230,16 @@ public abstract class TypeRef implements AstNode {
 		public int hashCode() {
 			return extendedType.hashCode();
 		}
-		
+
 	}
-	
+
 	public static class Parametrized extends TypeRef {
-		
+
 		/**
 		 * Base type that generic type parameters are applied to.
 		 */
 		private final TypeRef baseType;
-		
+
 		/**
 		 * Type parameters.
 		 */
@@ -254,7 +254,7 @@ public abstract class TypeRef implements AstNode {
 		public String name() {
 			return baseType.name();
 		}
-		
+
 		@Override
 		public TypeRef baseType() {
 			return baseType.baseType();
@@ -264,11 +264,11 @@ public abstract class TypeRef implements AstNode {
 		public int arrayDimensions() {
 			return 0;
 		}
-		
+
 		public List<TypeRef> typeParams() {
 			return params;
 		}
-		
+
 		@Override
 		public void walk(Consumer<AstNode> visitor) {
 			visitor.accept(this);
@@ -290,14 +290,14 @@ public abstract class TypeRef implements AstNode {
 			return baseType.hashCode() + 31 * params.hashCode();
 		}
 	}
-	
+
 	public static class Array extends TypeRef {
-		
+
 		/**
 		 * Array component type.
 		 */
 		private final TypeRef component;
-		
+
 		/**
 		 * Array dimensions.
 		 */
@@ -312,7 +312,7 @@ public abstract class TypeRef implements AstNode {
 		public String name() {
 			return component.name() + "[]".repeat(dimensions);
 		}
-		
+
 		@Override
 		public TypeRef baseType() {
 			return component.baseType();
@@ -322,7 +322,7 @@ public abstract class TypeRef implements AstNode {
 		public int arrayDimensions() {
 			return dimensions;
 		}
-		
+
 		@Override
 		public void walk(Consumer<AstNode> visitor) {
 			visitor.accept(this);
@@ -343,18 +343,18 @@ public abstract class TypeRef implements AstNode {
 			return component.hashCode() + 31 * dimensions;
 		}
 	}
-	
+
 	public static class Nullable extends TypeRef {
 
 		/**
 		 * Type that is nullable.
 		 */
 		private final TypeRef type;
-		
+
 		private Nullable(TypeRef type) {
 			this.type = type;
 		}
-		
+
 		/**
 		 * Type that we wrap because it is nullable.
 		 * @return Nullable type.
@@ -362,7 +362,7 @@ public abstract class TypeRef implements AstNode {
 		public TypeRef nullableType() {
 			return type;
 		}
-		
+
 		@Override
 		public String name() {
 			return type.name();
@@ -377,7 +377,7 @@ public abstract class TypeRef implements AstNode {
 		public int arrayDimensions() {
 			return type.arrayDimensions();
 		}
-		
+
 		@Override
 		public void walk(Consumer<AstNode> visitor) {
 			type.walk(visitor);
@@ -395,28 +395,33 @@ public abstract class TypeRef implements AstNode {
 		public int hashCode() {
 			return type.hashCode();
 		}
-		
+
 	}
-	
+
 	public abstract String name();
-	
+
 	public String simpleName() {
 		String name = name();
 		return name.substring(name.lastIndexOf('.') + 1);
 	}
-	
+
 	public abstract TypeRef baseType();
-	
+
 	public abstract int arrayDimensions();
-	
+
 	public Array makeArray(int dimensions) {
 		return new Array(this, dimensions);
 	}
-	
+
 	@Override
 	public abstract boolean equals(Object obj);
-	
+
 	@Override
 	public abstract int hashCode();
-	
+
+	@Override
+	public String toString() {
+		return name();
+	}
+
 }
