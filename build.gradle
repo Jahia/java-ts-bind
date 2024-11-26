@@ -1,10 +1,32 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '6.1.0'
+    id 'maven-publish'
 }
 
 repositories {
     mavenCentral()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'io.github.bensku'
+            artifactId = 'java-ts-bind'
+            version = '1.0.0-jahia-1'
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = "jahia-releases"
+            url = uri("https://devtools.jahia.com/nexus/content/repositories/jahia-releases")
+            credentials {
+                username = System.getenv("NEXUS_USERNAME")
+                password = System.getenv("NEXUS_PASSWORD")
+            }
+        }
+    }
 }
 
 compileJava {
