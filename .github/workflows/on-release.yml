@@ -1,0 +1,48 @@
+# This workflow is triggered when someone create a new release in GitHub
+name: Trigger Release creation
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  release:
+    runs-on: self-hosted
+
+    # The cimg-mvn-cache is an image containing a .m2 folder warmed-up
+    # with common Jahia dependencies. Using this prevents maven from
+    # downloading the entire world when building.
+    # More on https://github.com/Jahia/cimg-mvn-cache
+    container:
+      image: jahia/cimg-mvn-cache:ga_cimg_openjdk_11.0.20-node
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11.0.19'
+
+      - name: Build with Gradle
+        run: ./gradlew shadowJar
+
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-artifacts
+          path: |
+            ./build/libs/*.jar
+          retention-days: 2
+          if-no-files-found: error
+
+      - name: Publish to Maven Central
+        run: ./gradlew publish
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
