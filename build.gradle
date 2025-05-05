@@ -13,7 +13,7 @@ publishing {
         maven(MavenPublication) {
             groupId = 'io.github.bensku'
             artifactId = 'java-ts-bind'
-            version = '1.0.0-jahia-2'
+            version = '1.0.0-jahia-3'
             from components.java
         }
     }
@@ -34,6 +34,7 @@ compileJava {
 
 dependencies {
     implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.22.1'
+    implementation 'com.google.guava:guava:32.0.1-jre' // CVE-2023-2976
     implementation 'com.google.code.gson:gson:2.11.0'
     implementation 'org.jcommander:jcommander:1.83'
     implementation 'org.jsoup:jsoup:1.18.3'
